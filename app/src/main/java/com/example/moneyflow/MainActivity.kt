@@ -1,34 +1,85 @@
 package com.example.moneyflow
 
-import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import com.example.moneyflow.model.AuthRepository
+import com.example.moneyflow.model.MoneyFlowDatabaseHelper
 import com.example.moneyflow.ui.theme.MoneyFlowTheme
-import com.example.moneyflow.view.MainScreen
-import com.example.moneyflow.viewmodel.MainScreenViewModel
+import com.example.moneyflow.view.LoginScreen
+import com.example.moneyflow.view.RegisterScreen
+import com.example.moneyflow.viewmodel.AuthViewModel
+
+// Простая навигация
+enum class Screen {
+    LOGIN,
+    REGISTER,
+    HOME
+}
 
 class MainActivity : ComponentActivity() {
-    @SuppressLint("ViewModelConstructorInComposable")
+
+    // Инициализируем хелпер один раз на всё время жизни Activity
+    private lateinit var dbHelper: MoneyFlowDatabaseHelper
+    private lateinit var repository: AuthRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Инициализируем базу и репозиторий
+        dbHelper = MoneyFlowDatabaseHelper(this)
+        repository = AuthRepository(dbHelper)
+
         setContent {
             MoneyFlowTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    val viewModel = MainScreenViewModel()
-
-                    MainScreen(viewModel, Modifier.padding(innerPadding))
-                }
+                // Передаем репозиторий в основное приложение
+                MoneyFlowApp(repository)
             }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        dbHelper.close()
+    }
+}
+
+@Composable
+fun MoneyFlowApp(repository: AuthRepository) {
+    var currentScreen by remember { mutableStateOf(Screen.LOGIN) }
+
+    // Создаем ViewModel с помощью фабрики, чтобы передать туда репозиторий
+    val authViewModel: AuthViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return AuthViewModel(repository) as T
+            }
+        }
+    )
+
+    when (currentScreen) {
+        Screen.LOGIN -> LoginScreen(
+            viewModel = authViewModel, // Передаем созданную вьюмодель в экран
+            onNavigateToRegister = { currentScreen = Screen.REGISTER },
+            onLoginSuccess = { currentScreen = Screen.HOME }
+        )
+
+        Screen.REGISTER -> RegisterScreen(
+            viewModel = authViewModel, // Используем ту же вьюмодель
+            onNavigateToLogin = { currentScreen = Screen.LOGIN },
+            onRegisterSuccess = { currentScreen = Screen.HOME },
+            onContinueAsGuest = { currentScreen = Screen.HOME }
+        )
+
+        Screen.HOME -> {
+            androidx.compose.material3.Text("Главный экран — база данных теперь подключена!")
         }
     }
 }
