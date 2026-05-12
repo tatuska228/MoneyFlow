@@ -1,23 +1,36 @@
 package com.example.moneyflow.view
 
+import android.annotation.SuppressLint
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.activity.compose.LocalActivity
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.moneyflow.model.User
 import com.example.moneyflow.ui.theme.*
+import com.example.moneyflow.view.elements.AppSnackbarHost
 import com.example.moneyflow.view.elements.AppTextField
 import com.example.moneyflow.view.elements.PrimaryButton
 import com.example.moneyflow.view.elements.SecondaryButton
-import com.example.moneyflow.view.elements.TextLinkButton
 import com.example.moneyflow.viewmodel.AuthViewModel
 
 @Composable
@@ -28,31 +41,23 @@ fun LoginScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val activity = LocalActivity.current as FragmentActivity
 
-    // Handle error messages via Snackbar
+    LaunchedEffect(Unit) { viewModel.init(activity) }
+
     LaunchedEffect(uiState.errorMessage) {
-        uiState.errorMessage?.let { message ->
-            snackbarHostState.showSnackbar(message)
+        uiState.errorMessage?.let {
+            snackbarHostState.showSnackbar(it)
             viewModel.clearError()
         }
     }
 
-    // Navigate on successful login
     LaunchedEffect(uiState.isLoggedIn) {
-        if (uiState.isLoggedIn) {
-            onLoginSuccess()
-        }
+        if (uiState.isLoggedIn) onLoginSuccess()
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(0.dp)
-    ) {
-        androidx.compose.material3.Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = Primary
-        ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Surface(modifier = Modifier.fillMaxSize(), color = Primary) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -60,27 +65,61 @@ fun LoginScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // App name
-                Text(
-                    text = "MoneyFlow",
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = OnPrimary
-                )
+                Text("MoneyFlow", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = OnPrimary)
 
-                Spacer(modifier = Modifier.height(48.dp))
+                Spacer(Modifier.height(48.dp))
 
-                // Screen title
-                Text(
-                    text = "Вход",
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = OnPrimary
-                )
+                Text("Вход", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = OnPrimary)
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(Modifier.height(24.dp))
 
-                // Login field
+                // ── Список аккаунтов (если есть зарегистрированные) ──────────
+                if (uiState.registeredUsers.isNotEmpty()) {
+                    Text(
+                        text = "Выберите аккаунт",
+                        color = TextSecondary,
+                        fontSize = 13.sp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(uiState.registeredUsers) { user ->
+                            UserAvatarCard(
+                                user = user,
+                                isSelected = uiState.selectedUserId == user.id,
+                                onClick = {
+                                    viewModel.onUserSelected(
+                                        if (uiState.selectedUserId == user.id) null else user.id
+                                    )
+                                }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+
+                    // Кнопка биометрии — показывается только если выбран аккаунт с включённой биометрией
+                    val selectedUser = uiState.registeredUsers
+                        .firstOrNull { it.id == uiState.selectedUserId }
+                    if (selectedUser != null && selectedUser.biometricEnabled && uiState.isBiometricAvailable) {
+                        BiometricLoginButton(
+                            userName = selectedUser.login,
+                            onClick = { viewModel.loginWithBiometric(activity) }
+                        )
+                        Spacer(Modifier.height(16.dp))
+
+                        Text(
+                            text = "— или введите пароль —",
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                        Spacer(Modifier.height(12.dp))
+                    }
+                }
+
+                // ── Поля ввода ───────────────────────────────────────────────
                 AppTextField(
                     value = uiState.login,
                     onValueChange = viewModel::onLoginChange,
@@ -88,10 +127,7 @@ fun LoginScreen(
                     isError = uiState.loginError != null,
                     errorMessage = uiState.loginError
                 )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Password field
+                Spacer(Modifier.height(16.dp))
                 AppTextField(
                     value = uiState.password,
                     onValueChange = viewModel::onPasswordChange,
@@ -100,40 +136,111 @@ fun LoginScreen(
                     isError = uiState.passwordError != null,
                     errorMessage = uiState.passwordError
                 )
+                Spacer(Modifier.height(24.dp))
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Login button
                 if (uiState.isLoading) {
                     CircularProgressIndicator(color = OnPrimary)
                 } else {
-                    PrimaryButton(
-                        text = "Войти",
-                        onClick = viewModel::login
-                    )
+                    PrimaryButton(text = "Войти", onClick = viewModel::login)
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Navigate to register
-                Text(
-                    text = "Ещё нет аккаунта?",
-                    color = TextSecondary,
-                    fontSize = 14.sp
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                SecondaryButton(
-                    text = "Зарегистрироваться",
-                    onClick = onNavigateToRegister
-                )
+                Spacer(Modifier.height(24.dp))
+                Text("Ещё нет аккаунта?", color = TextSecondary, fontSize = 14.sp)
+                Spacer(Modifier.height(8.dp))
+                SecondaryButton(text = "Зарегистрироваться", onClick = onNavigateToRegister)
             }
         }
 
-        SnackbarHost(
+        AppSnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+}
+
+// ── Карточка аккаунта ────────────────────────────────────────────────────────
+
+@Composable
+private fun UserAvatarCard(
+    user: User,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(4.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(56.dp)
+                .clip(CircleShape)
+                .background(if (isSelected) ButtonSecondary else SurfaceVariant)
+                .border(
+                    width = if (isSelected) 2.dp else 0.dp,
+                    color = if (isSelected) OnPrimary else Color.Transparent,
+                    shape = CircleShape
+                )
+        ) {
+            Text(
+                text = user.login.take(1).uppercase(),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = OnPrimary
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = user.login,
+            fontSize = 11.sp,
+            color = if (isSelected) OnPrimary else TextSecondary,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            modifier = Modifier.widthIn(max = 64.dp)
+        )
+        // Иконка отпечатка под именем если биометрия включена
+        if (user.biometricEnabled) {
+            Icon(
+                imageVector = Icons.Default.Fingerprint,
+                contentDescription = null,
+                tint = TextSecondary,
+                modifier = Modifier.size(14.dp)
+            )
+        }
+    }
+}
+
+// ── Кнопка входа по отпечатку ────────────────────────────────────────────────
+
+@Composable
+private fun BiometricLoginButton(
+    userName: String,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp),
+        shape = RoundedCornerShape(26.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = PrimaryDark,
+            contentColor = OnPrimary
+        )
+    ) {
+        Icon(
+            imageVector = Icons.Default.Fingerprint,
+            contentDescription = null,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = "Войти по отпечатку ($userName)",
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Medium
         )
     }
 }
