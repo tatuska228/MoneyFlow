@@ -1,47 +1,63 @@
 package com.example.moneyflow.model
 
-import androidx.compose.ui.graphics.Color
+// ── Transaction type ──────────────────────────────────────────────
+enum class TransactionType(val dbValue: String) {
+    INCOME("income"),
+    EXPENSE("expense");
 
-enum class TransactionType {
-    INCOME, EXPENSE
+    companion object {
+        fun fromDb(value: String) = entries.first { it.dbValue == value }
+    }
 }
 
+// ── Period filter ─────────────────────────────────────────────────
+enum class PeriodFilter { WEEK, MONTH, YEAR }
+
+// ── Core models ───────────────────────────────────────────────────
 data class Transaction(
     val id: Long = 0,
+    val userId: Long,
     val amount: Double,
     val type: TransactionType,
     val categoryId: Long,
     val categoryName: String,
-    val categoryColor: Int, // stored as ARGB Int for SQLite
-    val date: Long,         // Unix timestamp ms
+    val categoryColor: Long,   // ARGB stored as Long for SQLite
+    val date: Long,            // Unix ms
     val note: String = ""
 )
 
 data class Category(
     val id: Long = 0,
+    val userId: Long?,         // null = default/shared category
     val name: String,
-    val colorArgb: Int,
-    val type: TransactionType,
-    val budgetLimit: Double = 0.0
+    val colorArgb: Long,
+    val type: TransactionType, // INCOME or EXPENSE
+    val isDefault: Boolean = false
 )
 
-data class CategorySummary(
-    val category: Category,
-    val totalAmount: Double,
+// ── Summary helpers ───────────────────────────────────────────────
+data class TransactionSummary(
+    val transaction: Transaction,
     val percentage: Float
 )
 
-enum class PeriodFilter {
-    WEEK, MONTH, YEAR
-}
-
 data class PeriodSummary(
-    val totalExpenses: Double,
-    val totalIncome: Double,
-    val plannedExpenses: Double,
-    val remainingExpenses: Double,
-    val plannedIncome: Double,
-    val remainingIncome: Double,
-    val categorySummaries: List<CategorySummary>,
+    val totalAmount: Double,       // расходы или доходы за период
+    val plannedBudget: Double,     // «по плану» — устанавливает пользователь
+    val remainder: Double,         // plannedBudget - totalExpenses (может быть < 0)
+    val transactionSummaries: List<TransactionSummary>,
     val periodLabel: String
 )
+
+// ── Auth models (shared with AuthRepository) ──────────────────────
+data class User(
+    val id: Long,
+    val login: String,
+    val passwordHash: String,
+    val biometricEnabled: Boolean = false
+)
+
+sealed class AuthResult {
+    data class Success(val userId: Long) : AuthResult()
+    data class Error(val message: String) : AuthResult()
+}

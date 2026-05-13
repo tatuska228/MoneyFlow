@@ -15,14 +15,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.moneyflow.model.CategorySummary
-import com.example.moneyflow.ui.theme.BackgroundCard
+import com.example.moneyflow.model.TransactionSummary
+import com.example.moneyflow.ui.theme.BackgroundDialog
 import com.example.moneyflow.ui.theme.TextPrimary
 
-data class DonutSlice(
-    val color: Color,
-    val percentage: Float
-)
+data class DonutSlice(val color: Color, val percentage: Float)
 
 @Composable
 fun DonutChart(
@@ -30,7 +27,7 @@ fun DonutChart(
     centerLabel: String,
     modifier: Modifier = Modifier,
     size: Dp = 180.dp,
-    strokeWidth: Dp = 32.dp
+    strokeWidth: Dp = 36.dp
 ) {
     Box(
         modifier = modifier.size(size),
@@ -38,33 +35,27 @@ fun DonutChart(
     ) {
         Canvas(modifier = Modifier.size(size)) {
             val stroke = strokeWidth.toPx()
-            val inset = stroke / 2f
+            val inset  = stroke / 2f
             val arcSize = Size(this.size.width - stroke, this.size.height - stroke)
             val topLeft = Offset(inset, inset)
 
-            var startAngle = -90f
-
             if (slices.isEmpty()) {
-                // Empty state: draw grey ring
                 drawArc(
-                    color = BackgroundCard,
-                    startAngle = 0f,
-                    sweepAngle = 360f,
+                    color = BackgroundDialog.copy(alpha = 0.4f),
+                    startAngle = 0f, sweepAngle = 360f,
                     useCenter = false,
-                    topLeft = topLeft,
-                    size = arcSize,
+                    topLeft = topLeft, size = arcSize,
                     style = Stroke(width = stroke)
                 )
             } else {
+                var startAngle = -90f
                 slices.forEach { slice ->
                     val sweep = 360f * (slice.percentage / 100f)
                     drawArc(
                         color = slice.color,
-                        startAngle = startAngle,
-                        sweepAngle = sweep,
+                        startAngle = startAngle, sweepAngle = sweep,
                         useCenter = false,
-                        topLeft = topLeft,
-                        size = arcSize,
+                        topLeft = topLeft, size = arcSize,
                         style = Stroke(width = stroke)
                     )
                     startAngle += sweep
@@ -73,19 +64,13 @@ fun DonutChart(
         }
 
         Text(
-            text = centerLabel,
-            color = TextPrimary,
-            fontSize = 18.sp,
+            text       = centerLabel,
+            color      = TextPrimary,
+            fontSize   = 18.sp,
             fontWeight = FontWeight.Bold
         )
     }
 }
 
-fun categorySlices(summaries: List<CategorySummary>): List<DonutSlice> {
-    return summaries.map { summary ->
-        DonutSlice(
-            color = Color(summary.category.colorArgb),
-            percentage = summary.percentage
-        )
-    }
-}
+fun transactionSlices(summaries: List<TransactionSummary>): List<DonutSlice> =
+    summaries.map { DonutSlice(Color(it.transaction.categoryColor), it.percentage) }

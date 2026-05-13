@@ -11,10 +11,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.moneyflow.ui.theme.ButtonCancel
 import com.example.moneyflow.ui.theme.ButtonDanger
 import com.example.moneyflow.ui.theme.ButtonPrimary
 import com.example.moneyflow.ui.theme.TabSelected
 import com.example.moneyflow.ui.theme.TabUnselected
+import com.example.moneyflow.ui.theme.TextPrimary
 import com.example.moneyflow.ui.theme.TextSecondary
 
 @Composable
@@ -29,60 +31,51 @@ fun ModeToggleButton(
         shape = RoundedCornerShape(20.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = if (isSelected) TabSelected else TabUnselected,
-            contentColor = if (isSelected) Color.White else TextSecondary
+            contentColor   = if (isSelected) TextPrimary  else TextSecondary
         ),
         modifier = modifier.height(36.dp)
     ) {
         Text(
-            text = label,
-            fontSize = 12.sp,
-            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-            letterSpacing = 0.5.sp
-        )
-    }
-}
-
-
-@Composable
-fun SaveButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Button(
-        onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = ButtonPrimary,
-            contentColor = Color.White
-        ),
-        modifier = modifier.height(48.dp)
-    ) {
-        Text(
-            text = "Сохранить",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold
+            text       = label,
+            fontSize   = 12.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            letterSpacing = 0.8.sp
         )
     }
 }
 
 @Composable
-fun DeleteButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+fun SaveButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Button(
         onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = ButtonDanger,
-            contentColor = Color.White
-        ),
+        shape  = RoundedCornerShape(10.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = ButtonPrimary, contentColor = Color.White),
         modifier = modifier.height(48.dp)
     ) {
-        Text(
-            text = "Удалить",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold
-        )
+        Text("Сохранить", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+fun DeleteButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Button(
+        onClick = onClick,
+        shape  = RoundedCornerShape(10.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = ButtonDanger, contentColor = Color.White),
+        modifier = modifier.height(48.dp)
+    ) {
+        Text("Удалить", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+fun CancelButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Button(
+        onClick = onClick,
+        shape  = RoundedCornerShape(10.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = ButtonCancel, contentColor = Color.White),
+        modifier = modifier.height(48.dp)
+    ) {
+        Text("Отмена", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
     }
 }

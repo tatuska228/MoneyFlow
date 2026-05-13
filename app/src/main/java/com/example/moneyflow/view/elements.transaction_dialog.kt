@@ -3,32 +3,14 @@ package com.example.moneyflow.view
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -37,30 +19,24 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.moneyflow.model.Category
-import com.example.moneyflow.model.Transaction
-import com.example.moneyflow.ui.theme.BackgroundCard
-import com.example.moneyflow.ui.theme.BackgroundCardLight
-import com.example.moneyflow.ui.theme.BackgroundDark
-import com.example.moneyflow.ui.theme.DividerColor
-import com.example.moneyflow.ui.theme.PrimaryGreen
-import com.example.moneyflow.ui.theme.TextPrimary
-import com.example.moneyflow.ui.theme.TextSecondary
+import com.example.moneyflow.ui.theme.*
 import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TransactionEditDialog(
+fun TransactionDialog(
     isVisible: Boolean,
-    isEditing: Boolean,
+    isEditing: Boolean,            // true = редактирование, false = добавление
     categories: List<Category>,
     selectedCategoryId: Long,
     selectedDateMs: Long,
     amount: String,
+    note: String,
     onCategoryChange: (Long) -> Unit,
     onDateChange: (Long) -> Unit,
     onAmountChange: (String) -> Unit,
+    onNoteChange: (String) -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit
@@ -75,103 +51,52 @@ fun TransactionEditDialog(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = BackgroundCard,
-        dragHandle = null,
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+        sheetState       = sheetState,
+        containerColor   = BackgroundDialog,
+        dragHandle       = {
+            Box(
+                modifier = Modifier
+                    .padding(vertical = 12.dp)
+                    .size(width = 40.dp, height = 4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color.White.copy(alpha = 0.3f))
+            )
+        },
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 24.dp)
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
         ) {
-            // ── Date field ──────────────────────────────────────
-            Text(
-                text = "Дата",
-                color = TextSecondary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
+            // ── Date ─────────────────────────────────────────────
+            DialogLabel("Дата")
             Spacer(Modifier.height(8.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(BackgroundCardLight)
-                    .border(1.dp, DividerColor, RoundedCornerShape(10.dp))
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = dateFormatter.format(Date(selectedDateMs)),
-                        color = TextPrimary,
-                        fontSize = 15.sp
-                    )
-                    Icon(
-                        imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = null,
-                        tint = TextSecondary
-                    )
-                }
-            }
+            DialogDropdownBox(
+                text  = dateFormatter.format(Date(selectedDateMs)),
+                onClick = { /* date picker can be added later */ }
+            )
 
             Spacer(Modifier.height(16.dp))
 
-            // ── Category dropdown ───────────────────────────────
-            Text(
-                text = "Категория",
-                color = TextSecondary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
+            // ── Category ─────────────────────────────────────────
+            DialogLabel("Категория")
             Spacer(Modifier.height(8.dp))
             Box {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(BackgroundCardLight)
-                        .border(1.dp, DividerColor, RoundedCornerShape(10.dp))
-                        .clickable { showCategoryDropdown = true }
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = selectedCategoryName,
-                            color = TextPrimary,
-                            fontSize = 15.sp
-                        )
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = null,
-                            tint = TextSecondary
-                        )
-                    }
-                }
+                DialogDropdownBox(
+                    text    = selectedCategoryName,
+                    onClick = { showCategoryDropdown = true }
+                )
                 DropdownMenu(
-                    expanded = showCategoryDropdown,
+                    expanded        = showCategoryDropdown,
                     onDismissRequest = { showCategoryDropdown = false },
-                    modifier = Modifier.background(BackgroundCard)
+                    modifier = Modifier.background(BackgroundDialog)
                 ) {
                     categories.forEach { cat ->
                         DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = cat.name,
-                                    color = TextPrimary,
-                                    fontSize = 14.sp
-                                )
-                            },
-                            onClick = {
-                                onCategoryChange(cat.id)
-                                showCategoryDropdown = false
-                            }
+                            text    = { Text(cat.name, color = TextPrimary, fontSize = 14.sp) },
+                            onClick = { onCategoryChange(cat.id); showCategoryDropdown = false }
                         )
                     }
                 }
@@ -179,55 +104,117 @@ fun TransactionEditDialog(
 
             Spacer(Modifier.height(16.dp))
 
-            // ── Amount field ────────────────────────────────────
-            Text(
-                text = "Сумма, ₽",
-                color = TextSecondary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
+            // ── Amount ───────────────────────────────────────────
+            DialogLabel("Сумма, ₽")
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
-                value = amount,
+                value       = amount,
                 onValueChange = { onAmountChange(it.filter { c -> c.isDigit() || c == '.' }) },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = {
-                    Text("0", color = TextSecondary, fontSize = 15.sp)
-                },
+                modifier    = Modifier.fillMaxWidth(),
+                placeholder = { Text("0", color = TextHint, fontSize = 15.sp) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true,
-                shape = RoundedCornerShape(10.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = BackgroundCardLight,
-                    unfocusedContainerColor = BackgroundCardLight,
-                    focusedBorderColor = PrimaryGreen,
-                    unfocusedBorderColor = DividerColor,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary,
-                    cursorColor = PrimaryGreen
-                )
+                singleLine  = true,
+                shape       = RoundedCornerShape(10.dp),
+                colors      = dialogTextFieldColors()
             )
 
             Spacer(Modifier.height(24.dp))
 
-            // ── Action buttons ──────────────────────────────────
+            // ── Action buttons ────────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                SaveButton(
-                    onClick = onSave,
-                    modifier = Modifier.weight(1f)
-                )
+                SaveButton(onClick = onSave, modifier = Modifier.weight(1f))
                 if (isEditing) {
-                    DeleteButton(
-                        onClick = onDelete,
-                        modifier = Modifier.weight(1f)
-                    )
+                    DeleteButton(onClick = onDelete, modifier = Modifier.weight(1f))
+                } else {
+                    CancelButton(onClick = onDismiss, modifier = Modifier.weight(1f))
                 }
             }
-
-            Spacer(Modifier.height(16.dp))
         }
     }
 }
+
+// ── Planned budget dialog ─────────────────────────────────────────
+
+@Composable
+fun PlannedBudgetDialog(
+    isVisible: Boolean,
+    currentValue: String,
+    onValueChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    if (!isVisible) return
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor   = BackgroundDialog,
+        title = {
+            Text("Сумма по плану", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        },
+        text = {
+            OutlinedTextField(
+                value         = currentValue,
+                onValueChange = { onValueChange(it.filter { c -> c.isDigit() || c == '.' }) },
+                placeholder   = { Text("0", color = TextHint) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine    = true,
+                shape         = RoundedCornerShape(10.dp),
+                colors        = dialogTextFieldColors(),
+                modifier      = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onSave) {
+                Text("Сохранить", color = PrimaryGreen, fontWeight = FontWeight.SemiBold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена", color = TextSecondary)
+            }
+        }
+    )
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+
+@Composable
+private fun DialogLabel(text: String) {
+    Text(text = text, color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+}
+
+@Composable
+private fun DialogDropdownBox(text: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(BackgroundField)
+            .border(1.dp, DividerColor, RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = text, color = TextPrimary, fontSize = 15.sp)
+        Icon(
+            imageVector = Icons.Default.ArrowDropDown,
+            contentDescription = null,
+            tint = TextSecondary
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun dialogTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor   = BackgroundField,
+    unfocusedContainerColor = BackgroundField,
+    focusedBorderColor      = PrimaryGreen,
+    unfocusedBorderColor    = DividerColor,
+    focusedTextColor        = TextPrimary,
+    unfocusedTextColor      = TextPrimary,
+    cursorColor             = PrimaryGreen
+)

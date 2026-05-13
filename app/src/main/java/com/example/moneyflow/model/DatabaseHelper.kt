@@ -4,116 +4,239 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
-import com.example.moneyflow.ui.theme.CategoryBlue
-import com.example.moneyflow.ui.theme.CategoryOrange
-import com.example.moneyflow.ui.theme.CategoryPurple
-import com.example.moneyflow.ui.theme.CategoryRed
-import com.example.moneyflow.ui.theme.CategoryTeal
-import com.example.moneyflow.ui.theme.PrimaryGreen
 
-class DatabaseHelper(context: Context) :
+class MoneyFlowDatabaseHelper(context: Context) :
     SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
-    companion object {
-        const val DATABASE_NAME = "moneyflow.db"
-        const val DATABASE_VERSION = 1
-
-        // Transactions table
-        const val TABLE_TRANSACTIONS = "transactions"
-        const val COL_ID = "id"
-        const val COL_AMOUNT = "amount"
-        const val COL_TYPE = "type"
-        const val COL_CATEGORY_ID = "category_id"
-        const val COL_CATEGORY_NAME = "category_name"
-        const val COL_CATEGORY_COLOR = "category_color"
-        const val COL_DATE = "date"
-        const val COL_NOTE = "note"
-
-        // Categories table
-        const val TABLE_CATEGORIES = "categories"
-        const val COL_CAT_ID = "id"
-        const val COL_CAT_NAME = "name"
-        const val COL_CAT_COLOR = "color_argb"
-        const val COL_CAT_TYPE = "type"
-        const val COL_CAT_BUDGET = "budget_limit"
-    }
-
     override fun onCreate(db: SQLiteDatabase) {
-        db.execSQL(
-            """
-            CREATE TABLE $TABLE_CATEGORIES (
-                $COL_CAT_ID INTEGER PRIMARY KEY AUTOINCREMENT,
-                $COL_CAT_NAME TEXT NOT NULL,
-                $COL_CAT_COLOR INTEGER NOT NULL,
-                $COL_CAT_TYPE TEXT NOT NULL,
-                $COL_CAT_BUDGET REAL DEFAULT 0
-            )
-            """.trimIndent()
-        )
-
-        db.execSQL(
-            """
-            CREATE TABLE $TABLE_TRANSACTIONS (
-                $COL_ID INTEGER PRIMARY KEY AUTOINCREMENT,
-                $COL_AMOUNT REAL NOT NULL,
-                $COL_TYPE TEXT NOT NULL,
-                $COL_CATEGORY_ID INTEGER NOT NULL,
-                $COL_CATEGORY_NAME TEXT NOT NULL,
-                $COL_CATEGORY_COLOR INTEGER NOT NULL,
-                $COL_DATE INTEGER NOT NULL,
-                $COL_NOTE TEXT DEFAULT '',
-                FOREIGN KEY ($COL_CATEGORY_ID) REFERENCES $TABLE_CATEGORIES($COL_CAT_ID)
-            )
-            """.trimIndent()
-        )
-
-        // Seed default expense categories
-        val expenseCategories = listOf(
-            Triple("Продукты", CategoryBlue.value.toInt(), TransactionType.EXPENSE),
-            Triple("Развлечения", CategoryRed.value.toInt(), TransactionType.EXPENSE),
-            Triple("Транспорт", CategoryOrange.value.toInt(), TransactionType.EXPENSE),
-            Triple("Здоровье", CategoryPurple.value.toInt(), TransactionType.EXPENSE),
-            Triple("Коммунальные", CategoryTeal.value.toInt(), TransactionType.EXPENSE)
-        )
-        val incomeCategories = listOf(
-            Triple("Зарплата", PrimaryGreen.value.toInt(), TransactionType.INCOME),
-            Triple("Фриланс", CategoryTeal.value.toInt(), TransactionType.INCOME)
-        )
-        (expenseCategories + incomeCategories).forEach { (name, color, type) ->
-            val cv = ContentValues().apply {
-                put(COL_CAT_NAME, name)
-                put(COL_CAT_COLOR, color)
-                put(COL_CAT_TYPE, type.name)
-                put(COL_CAT_BUDGET, 0.0)
-            }
-            db.insert(TABLE_CATEGORIES, null, cv)
-        }
+        db.execSQL(CREATE_USERS_TABLE)
+        db.execSQL(CREATE_CATEGORIES_TABLE)
+        db.execSQL(CREATE_TRANSACTIONS_TABLE)
+        db.execSQL(CREATE_BUDGETS_TABLE)
+        db.execSQL(CREATE_REGULAR_PAYMENTS_TABLE)
+        db.execSQL(CREATE_USER_SETTINGS_TABLE)
+        seedDefaultCategories(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_TRANSACTIONS")
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_CATEGORIES")
+        listOf("user_settings", "regular_payments", "budgets",
+            "transactions", "categories", "users").forEach {
+            db.execSQL("DROP TABLE IF EXISTS $it")
+        }
         onCreate(db)
+    }
+
+    // ── Default category seeds ────────────────────────────────────
+
+    private fun seedDefaultCategories(db: SQLiteDatabase) {
+        val defaults = listOf(
+            // EXPENSE defaults
+            Triple("Продукты",      0xFF2196F3L, "expense"),
+            Triple("Развлечения",   0xFFE53935L, "expense"),
+            Triple("Транспорт",     0xFFFF9800L, "expense"),
+            Triple("Здоровье",      0xFF9C27B0L, "expense"),
+            Triple("Коммунальные",  0xFF009688L, "expense"),
+            Triple("Одежда",        0xFFE91E63L, "expense"),
+            Triple("Рестораны",     0xFFFFC107L, "expense"),
+            Triple("Образование",   0xFF3F51B5L, "expense"),
+            // INCOME defaults
+            Triple("Зарплата",      0xFF4CAF50L, "income"),
+            Triple("Фриланс",       0xFF009688L, "income"),
+            Triple("Премия",        0xFFFF9800L, "income"),
+            Triple("Подарок",       0xFFE91E63L, "income"),
+            Triple("Инвестиции",    0xFF3F51B5L, "income")
+        )
+        defaults.forEach { (name, color, type) ->
+            db.insert(TABLE_CATEGORIES, null, ContentValues().apply {
+                put(COL_CAT_NAME, name)
+                put(COL_CAT_COLOR, color)
+                put(COL_CAT_TYPE, type)
+                put(COL_CAT_IS_DEFAULT, 1)
+                putNull(COL_CAT_USER_ID)
+            })
+        }
+    }
+
+    // ── SQL DDL ───────────────────────────────────────────────────
+
+    companion object {
+        const val DATABASE_NAME    = "moneyflow.db"
+        const val DATABASE_VERSION = 3
+
+        // users
+        const val TABLE_USERS              = "users"
+        const val COL_USER_ID              = "id"
+        const val COL_USER_LOGIN           = "login"
+        const val COL_USER_PASSWORD_HASH   = "password_hash"
+        const val COL_USER_BIOMETRIC       = "biometric_enabled"
+        const val COL_USER_CREATED_AT      = "created_at"
+
+        // categories
+        const val TABLE_CATEGORIES    = "categories"
+        const val COL_CAT_ID          = "id"
+        const val COL_CAT_USER_ID     = "user_id"
+        const val COL_CAT_NAME        = "name"
+        const val COL_CAT_COLOR       = "color_argb"
+        const val COL_CAT_TYPE        = "type"
+        const val COL_CAT_IS_DEFAULT  = "is_default"
+
+        // transactions
+        const val TABLE_TRANSACTIONS   = "transactions"
+        const val COL_TX_ID            = "id"
+        const val COL_TX_USER_ID       = "user_id"
+        const val COL_TX_CATEGORY_ID   = "category_id"
+        const val COL_TX_CATEGORY_NAME = "category_name"
+        const val COL_TX_CATEGORY_COLOR= "category_color"
+        const val COL_TX_AMOUNT        = "amount"
+        const val COL_TX_TYPE          = "type"
+        const val COL_TX_NOTE          = "note"
+        const val COL_TX_DATE          = "date"
+
+        // budgets
+        const val TABLE_BUDGETS        = "budgets"
+
+        // regular_payments
+        const val TABLE_REGULAR        = "regular_payments"
+
+        // user_settings  (planned budget + other prefs)
+        const val TABLE_SETTINGS       = "user_settings"
+        const val COL_SET_USER_ID      = "user_id"
+        const val COL_SET_PLANNED_BUDGET = "planned_budget"
+
+        // ── DDL strings ──────────────────────────────────────────
+
+        const val CREATE_USERS_TABLE =
+            "CREATE TABLE IF NOT EXISTS users (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "login TEXT UNIQUE NOT NULL, " +
+                    "password_hash TEXT NOT NULL, " +
+                    "biometric_enabled INTEGER NOT NULL DEFAULT 0, " +
+                    "created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')))"
+
+        const val CREATE_CATEGORIES_TABLE =
+            "CREATE TABLE IF NOT EXISTS categories (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "user_id INTEGER, " +
+                    "name TEXT NOT NULL, " +
+                    "color_argb INTEGER NOT NULL DEFAULT 0, " +
+                    "type TEXT NOT NULL CHECK(type IN ('income','expense')), " +
+                    "is_default INTEGER NOT NULL DEFAULT 0)"
+
+        const val CREATE_TRANSACTIONS_TABLE =
+            "CREATE TABLE IF NOT EXISTS transactions (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "user_id INTEGER NOT NULL, " +
+                    "category_id INTEGER, " +
+                    "category_name TEXT NOT NULL DEFAULT '', " +
+                    "category_color INTEGER NOT NULL DEFAULT 0, " +
+                    "amount REAL NOT NULL, " +
+                    "type TEXT NOT NULL CHECK(type IN ('income','expense')), " +
+                    "note TEXT DEFAULT '', " +
+                    "date INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000))"
+
+        const val CREATE_BUDGETS_TABLE =
+            "CREATE TABLE IF NOT EXISTS budgets (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "user_id INTEGER NOT NULL, " +
+                    "category_id INTEGER NOT NULL, " +
+                    "amount REAL NOT NULL, " +
+                    "period TEXT NOT NULL)"
+
+        const val CREATE_REGULAR_PAYMENTS_TABLE =
+            "CREATE TABLE IF NOT EXISTS regular_payments (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "user_id INTEGER NOT NULL, " +
+                    "category_id INTEGER, " +
+                    "amount REAL NOT NULL, " +
+                    "type TEXT NOT NULL, " +
+                    "note TEXT, " +
+                    "interval_days INTEGER NOT NULL, " +
+                    "next_date INTEGER NOT NULL)"
+
+        const val CREATE_USER_SETTINGS_TABLE =
+            "CREATE TABLE IF NOT EXISTS user_settings (" +
+                    "user_id INTEGER PRIMARY KEY, " +
+                    "planned_budget REAL NOT NULL DEFAULT 0)"
+    }
+
+    // ── Users ─────────────────────────────────────────────────────
+
+    fun insertUser(login: String, passwordHash: String, biometric: Boolean = false): Long {
+        return writableDatabase.insert(TABLE_USERS, null, ContentValues().apply {
+            put(COL_USER_LOGIN, login)
+            put(COL_USER_PASSWORD_HASH, passwordHash)
+            put(COL_USER_BIOMETRIC, if (biometric) 1 else 0)
+        })
+    }
+
+    fun getUserByLoginAndHash(login: String, hash: String): User? {
+        val cursor = readableDatabase.query(
+            TABLE_USERS,
+            arrayOf(COL_USER_ID, COL_USER_LOGIN, COL_USER_PASSWORD_HASH, COL_USER_BIOMETRIC),
+            "$COL_USER_LOGIN = ? AND $COL_USER_PASSWORD_HASH = ?",
+            arrayOf(login, hash), null, null, null
+        )
+        return cursor.use {
+            if (it.moveToFirst()) User(
+                id = it.getLong(0), login = it.getString(1),
+                passwordHash = it.getString(2), biometricEnabled = it.getInt(3) == 1
+            ) else null
+        }
+    }
+
+    fun getUserById(userId: Long): User? {
+        val cursor = readableDatabase.query(
+            TABLE_USERS,
+            arrayOf(COL_USER_ID, COL_USER_LOGIN, COL_USER_PASSWORD_HASH, COL_USER_BIOMETRIC),
+            "$COL_USER_ID = ?", arrayOf(userId.toString()), null, null, null
+        )
+        return cursor.use {
+            if (it.moveToFirst()) User(
+                id = it.getLong(0), login = it.getString(1),
+                passwordHash = it.getString(2), biometricEnabled = it.getInt(3) == 1
+            ) else null
+        }
+    }
+
+    fun getAllUsers(): List<User> {
+        val cursor = readableDatabase.query(
+            TABLE_USERS,
+            arrayOf(COL_USER_ID, COL_USER_LOGIN, COL_USER_PASSWORD_HASH, COL_USER_BIOMETRIC),
+            null, null, null, null, "$COL_USER_CREATED_AT ASC"
+        )
+        val list = mutableListOf<User>()
+        cursor.use { while (it.moveToNext()) list += User(it.getLong(0), it.getString(1), it.getString(2), it.getInt(3) == 1) }
+        return list
+    }
+
+    fun setBiometricEnabled(userId: Long, enabled: Boolean) {
+        writableDatabase.update(TABLE_USERS,
+            ContentValues().apply { put(COL_USER_BIOMETRIC, if (enabled) 1 else 0) },
+            "$COL_USER_ID = ?", arrayOf(userId.toString()))
     }
 
     // ── Categories ────────────────────────────────────────────────
 
-    fun getCategories(type: TransactionType): List<Category> {
-        val list = mutableListOf<Category>()
-        val db = readableDatabase
-        val cursor = db.query(
-            TABLE_CATEGORIES, null,
-            "$COL_CAT_TYPE = ?", arrayOf(type.name),
-            null, null, "$COL_CAT_NAME ASC"
+    fun getCategories(type: TransactionType, userId: Long): List<Category> {
+        val typeStr = type.dbValue
+        // returns default categories + user's own
+        val cursor = readableDatabase.rawQuery(
+            "SELECT $COL_CAT_ID, $COL_CAT_USER_ID, $COL_CAT_NAME, $COL_CAT_COLOR, $COL_CAT_TYPE, $COL_CAT_IS_DEFAULT " +
+                    "FROM $TABLE_CATEGORIES " +
+                    "WHERE $COL_CAT_TYPE = ? AND ($COL_CAT_IS_DEFAULT = 1 OR $COL_CAT_USER_ID = ?) " +
+                    "ORDER BY $COL_CAT_IS_DEFAULT DESC, $COL_CAT_NAME ASC",
+            arrayOf(typeStr, userId.toString())
         )
+        val list = mutableListOf<Category>()
         cursor.use {
             while (it.moveToNext()) {
                 list += Category(
-                    id = it.getLong(it.getColumnIndexOrThrow(COL_CAT_ID)),
-                    name = it.getString(it.getColumnIndexOrThrow(COL_CAT_NAME)),
-                    colorArgb = it.getInt(it.getColumnIndexOrThrow(COL_CAT_COLOR)),
-                    type = TransactionType.valueOf(it.getString(it.getColumnIndexOrThrow(COL_CAT_TYPE))),
-                    budgetLimit = it.getDouble(it.getColumnIndexOrThrow(COL_CAT_BUDGET))
+                    id = it.getLong(0),
+                    userId = if (it.isNull(1)) null else it.getLong(1),
+                    name = it.getString(2),
+                    colorArgb = it.getLong(3),
+                    type = TransactionType.fromDb(it.getString(4)),
+                    isDefault = it.getInt(5) == 1
                 )
             }
         }
@@ -121,151 +244,106 @@ class DatabaseHelper(context: Context) :
     }
 
     fun insertCategory(category: Category): Long {
-        val cv = ContentValues().apply {
+        return writableDatabase.insert(TABLE_CATEGORIES, null, ContentValues().apply {
+            if (category.userId != null) put(COL_CAT_USER_ID, category.userId) else putNull(COL_CAT_USER_ID)
             put(COL_CAT_NAME, category.name)
             put(COL_CAT_COLOR, category.colorArgb)
-            put(COL_CAT_TYPE, category.type.name)
-            put(COL_CAT_BUDGET, category.budgetLimit)
-        }
-        return writableDatabase.insert(TABLE_CATEGORIES, null, cv)
-    }
-
-    fun updateCategory(category: Category) {
-        val cv = ContentValues().apply {
-            put(COL_CAT_NAME, category.name)
-            put(COL_CAT_COLOR, category.colorArgb)
-            put(COL_CAT_BUDGET, category.budgetLimit)
-        }
-        writableDatabase.update(
-            TABLE_CATEGORIES, cv,
-            "$COL_CAT_ID = ?", arrayOf(category.id.toString())
-        )
-    }
-
-    fun deleteCategory(categoryId: Long) {
-        writableDatabase.delete(
-            TABLE_CATEGORIES,
-            "$COL_CAT_ID = ?",
-            arrayOf(categoryId.toString())
-        )
+            put(COL_CAT_TYPE, category.type.dbValue)
+            put(COL_CAT_IS_DEFAULT, if (category.isDefault) 1 else 0)
+        })
     }
 
     // ── Transactions ──────────────────────────────────────────────
 
     fun insertTransaction(tx: Transaction): Long {
-        val cv = ContentValues().apply {
-            put(COL_AMOUNT, tx.amount)
-            put(COL_TYPE, tx.type.name)
-            put(COL_CATEGORY_ID, tx.categoryId)
-            put(COL_CATEGORY_NAME, tx.categoryName)
-            put(COL_CATEGORY_COLOR, tx.categoryColor)
-            put(COL_DATE, tx.date)
-            put(COL_NOTE, tx.note)
-        }
-        return writableDatabase.insert(TABLE_TRANSACTIONS, null, cv)
+        return writableDatabase.insert(TABLE_TRANSACTIONS, null, ContentValues().apply {
+            put(COL_TX_USER_ID, tx.userId)
+            put(COL_TX_CATEGORY_ID, tx.categoryId)
+            put(COL_TX_CATEGORY_NAME, tx.categoryName)
+            put(COL_TX_CATEGORY_COLOR, tx.categoryColor)
+            put(COL_TX_AMOUNT, tx.amount)
+            put(COL_TX_TYPE, tx.type.dbValue)
+            put(COL_TX_NOTE, tx.note)
+            put(COL_TX_DATE, tx.date)
+        })
     }
 
     fun updateTransaction(tx: Transaction) {
-        val cv = ContentValues().apply {
-            put(COL_AMOUNT, tx.amount)
-            put(COL_TYPE, tx.type.name)
-            put(COL_CATEGORY_ID, tx.categoryId)
-            put(COL_CATEGORY_NAME, tx.categoryName)
-            put(COL_CATEGORY_COLOR, tx.categoryColor)
-            put(COL_DATE, tx.date)
-            put(COL_NOTE, tx.note)
-        }
-        writableDatabase.update(
-            TABLE_TRANSACTIONS, cv,
-            "$COL_ID = ?", arrayOf(tx.id.toString())
-        )
+        writableDatabase.update(TABLE_TRANSACTIONS, ContentValues().apply {
+            put(COL_TX_CATEGORY_ID, tx.categoryId)
+            put(COL_TX_CATEGORY_NAME, tx.categoryName)
+            put(COL_TX_CATEGORY_COLOR, tx.categoryColor)
+            put(COL_TX_AMOUNT, tx.amount)
+            put(COL_TX_TYPE, tx.type.dbValue)
+            put(COL_TX_NOTE, tx.note)
+            put(COL_TX_DATE, tx.date)
+        }, "$COL_TX_ID = ? AND $COL_TX_USER_ID = ?", arrayOf(tx.id.toString(), tx.userId.toString()))
     }
 
-    fun deleteTransaction(transactionId: Long) {
-        writableDatabase.delete(
-            TABLE_TRANSACTIONS,
-            "$COL_ID = ?",
-            arrayOf(transactionId.toString())
-        )
+    fun deleteTransaction(txId: Long, userId: Long) {
+        writableDatabase.delete(TABLE_TRANSACTIONS,
+            "$COL_TX_ID = ? AND $COL_TX_USER_ID = ?",
+            arrayOf(txId.toString(), userId.toString()))
     }
 
-    fun getTransactionsByPeriod(
-        type: TransactionType,
-        startMs: Long,
-        endMs: Long
-    ): List<Transaction> {
+    fun getTransactionsByPeriod(userId: Long, type: TransactionType, startMs: Long, endMs: Long): List<Transaction> {
+        val cursor = readableDatabase.rawQuery(
+            "SELECT $COL_TX_ID, $COL_TX_USER_ID, $COL_TX_AMOUNT, $COL_TX_TYPE, " +
+                    "$COL_TX_CATEGORY_ID, $COL_TX_CATEGORY_NAME, $COL_TX_CATEGORY_COLOR, $COL_TX_DATE, $COL_TX_NOTE " +
+                    "FROM $TABLE_TRANSACTIONS " +
+                    "WHERE $COL_TX_USER_ID = ? AND $COL_TX_TYPE = ? AND $COL_TX_DATE >= ? AND $COL_TX_DATE <= ? " +
+                    "ORDER BY $COL_TX_DATE DESC",
+            arrayOf(userId.toString(), type.dbValue, startMs.toString(), endMs.toString())
+        )
         val list = mutableListOf<Transaction>()
-        val db = readableDatabase
-        val cursor = db.query(
-            TABLE_TRANSACTIONS, null,
-            "$COL_TYPE = ? AND $COL_DATE >= ? AND $COL_DATE <= ?",
-            arrayOf(type.name, startMs.toString(), endMs.toString()),
-            null, null, "$COL_DATE DESC"
-        )
         cursor.use {
             while (it.moveToNext()) {
                 list += Transaction(
-                    id = it.getLong(it.getColumnIndexOrThrow(COL_ID)),
-                    amount = it.getDouble(it.getColumnIndexOrThrow(COL_AMOUNT)),
-                    type = TransactionType.valueOf(it.getString(it.getColumnIndexOrThrow(COL_TYPE))),
-                    categoryId = it.getLong(it.getColumnIndexOrThrow(COL_CATEGORY_ID)),
-                    categoryName = it.getString(it.getColumnIndexOrThrow(COL_CATEGORY_NAME)),
-                    categoryColor = it.getInt(it.getColumnIndexOrThrow(COL_CATEGORY_COLOR)),
-                    date = it.getLong(it.getColumnIndexOrThrow(COL_DATE)),
-                    note = it.getString(it.getColumnIndexOrThrow(COL_NOTE))
+                    id = it.getLong(0), userId = it.getLong(1),
+                    amount = it.getDouble(2),
+                    type = TransactionType.fromDb(it.getString(3)),
+                    categoryId = it.getLong(4),
+                    categoryName = it.getString(5),
+                    categoryColor = it.getLong(6),
+                    date = it.getLong(7),
+                    note = it.getString(8)
                 )
             }
         }
         return list
     }
 
-    fun getCategorySummaries(
-        type: TransactionType,
-        startMs: Long,
-        endMs: Long
-    ): List<CategorySummary> {
-        val db = readableDatabase
-        val cursor = db.rawQuery(
-            """
-            SELECT t.$COL_CATEGORY_ID, t.$COL_CATEGORY_NAME, t.$COL_CATEGORY_COLOR,
-                   SUM(t.$COL_AMOUNT) as total,
-                   c.$COL_CAT_BUDGET
-            FROM $TABLE_TRANSACTIONS t
-            LEFT JOIN $TABLE_CATEGORIES c ON t.$COL_CATEGORY_ID = c.$COL_CAT_ID
-            WHERE t.$COL_TYPE = ? AND t.$COL_DATE >= ? AND t.$COL_DATE <= ?
-            GROUP BY t.$COL_CATEGORY_ID
-            ORDER BY total DESC
-            """.trimIndent(),
-            arrayOf(type.name, startMs.toString(), endMs.toString())
-        )
-        val rawList = mutableListOf<Pair<Category, Double>>()
-        cursor.use {
-            while (it.moveToNext()) {
-                val cat = Category(
-                    id = it.getLong(0),
-                    name = it.getString(1),
-                    colorArgb = it.getInt(2),
-                    type = type,
-                    budgetLimit = it.getDouble(4)
-                )
-                rawList += cat to it.getDouble(3)
-            }
-        }
-        val grandTotal = rawList.sumOf { it.second }.takeIf { it > 0 } ?: 1.0
-        return rawList.map { (cat, total) ->
-            CategorySummary(
-                category = cat,
-                totalAmount = total,
-                percentage = (total / grandTotal * 100).toFloat()
-            )
-        }
-    }
-
-    fun getTotalByPeriod(type: TransactionType, startMs: Long, endMs: Long): Double {
+    fun getTotalByPeriod(userId: Long, type: TransactionType, startMs: Long, endMs: Long): Double {
         val cursor = readableDatabase.rawQuery(
-            "SELECT SUM($COL_AMOUNT) FROM $TABLE_TRANSACTIONS WHERE $COL_TYPE=? AND $COL_DATE>=? AND $COL_DATE<=?",
-            arrayOf(type.name, startMs.toString(), endMs.toString())
+            "SELECT SUM($COL_TX_AMOUNT) FROM $TABLE_TRANSACTIONS " +
+                    "WHERE $COL_TX_USER_ID = ? AND $COL_TX_TYPE = ? AND $COL_TX_DATE >= ? AND $COL_TX_DATE <= ?",
+            arrayOf(userId.toString(), type.dbValue, startMs.toString(), endMs.toString())
         )
         return cursor.use { if (it.moveToFirst()) it.getDouble(0) else 0.0 }
+    }
+
+    // ── User settings (planned budget) ────────────────────────────
+
+    fun getPlannedBudget(userId: Long): Double {
+        val cursor = readableDatabase.query(
+            TABLE_SETTINGS, arrayOf(COL_SET_PLANNED_BUDGET),
+            "$COL_SET_USER_ID = ?", arrayOf(userId.toString()), null, null, null
+        )
+        return cursor.use { if (it.moveToFirst()) it.getDouble(0) else 0.0 }
+    }
+
+    fun setPlannedBudget(userId: Long, amount: Double) {
+        val db = writableDatabase
+        val existing = readableDatabase.query(
+            TABLE_SETTINGS, arrayOf(COL_SET_USER_ID),
+            "$COL_SET_USER_ID = ?", arrayOf(userId.toString()), null, null, null
+        ).use { it.moveToFirst() }
+
+        val cv = ContentValues().apply {
+            put(COL_SET_USER_ID, userId)
+            put(COL_SET_PLANNED_BUDGET, amount)
+        }
+        if (existing) db.update(TABLE_SETTINGS, cv, "$COL_SET_USER_ID = ?", arrayOf(userId.toString()))
+        else db.insert(TABLE_SETTINGS, null, cv)
     }
 }

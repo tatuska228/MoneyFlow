@@ -2,54 +2,51 @@ package com.example.moneyflow.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Background colors
-val BackgroundDark = Color(0xFF1A3A2A)
-val BackgroundCard = Color(0xFF1E3D2E)
-val BackgroundCardLight = Color(0xFF234832)
+// ── Main backgrounds ─────────────────────────────────────────────
+val BackgroundMain   = Color(0xFF38A580)   // основной фон страницы
+val BackgroundDialog = Color(0xFF2D453D)   // фон всплывающих окон / FAB
+val BackgroundCard   = Color(0xFF2D453D)   // карточка с диаграммой
+val BackgroundField  = Color(0xFF3A5449)   // поля ввода внутри диалога
 
-// Primary colors
-val PrimaryGreen = Color(0xFF4CAF7A)
-val PrimaryGreenLight = Color(0xFF6FCF97)
-val AccentGreen = Color(0xFF2ECC71)
+// ── Primary / accent ─────────────────────────────────────────────
+val PrimaryGreen      = Color(0xFF38A580)
+val PrimaryGreenLight = Color(0xFF4DC99E)
 
-// Text colors
-val TextPrimary = Color(0xFFFFFFFF)
-val TextSecondary = Color(0xFFB0C4B8)
-val TextHint = Color(0xFF7A9A87)
+// ── Text ─────────────────────────────────────────────────────────
+val TextPrimary   = Color(0xFFFFFFFF)
+val TextSecondary = Color(0xFFB0D4C4)
+val TextHint      = Color(0xFF7AADA0)
 
-// Category colors
-val CategoryBlue = Color(0xFF2196F3)
-val CategoryRed = Color(0xFFE53935)
+// ── Category palette ─────────────────────────────────────────────
+val CategoryBlue   = Color(0xFF2196F3)
+val CategoryRed    = Color(0xFFE53935)
 val CategoryOrange = Color(0xFFFF9800)
 val CategoryPurple = Color(0xFF9C27B0)
 val CategoryYellow = Color(0xFFFFEB3B)
-val CategoryTeal = Color(0xFF009688)
-val CategoryPink = Color(0xFFE91E63)
+val CategoryTeal   = Color(0xFF009688)
+val CategoryPink   = Color(0xFFE91E63)
 val CategoryIndigo = Color(0xFF3F51B5)
+val CategoryLime   = Color(0xFF8BC34A)
+val CategoryAmber  = Color(0xFFFFC107)
 
-// State colors
-val IncomeColor = Color(0xFF4CAF7A)
+// ── Semantic ─────────────────────────────────────────────────────
+val IncomeColor  = Color(0xFF2196F3)
 val ExpenseColor = Color(0xFFE53935)
 
-// Button colors
-val ButtonPrimary = Color(0xFF4CAF7A)
-val ButtonDanger = Color(0xFFE53935)
-val ButtonSecondary = Color(0xFF2D5040)
+// ── Buttons ──────────────────────────────────────────────────────
+val ButtonPrimary = Color(0xFF38A580)
+val ButtonDanger  = Color(0xFFE53935)
+val ButtonCancel  = Color(0xFF3A5449)
 
-// Tab colors
-val TabSelected = Color(0xFF4CAF7A)
-val TabUnselected = Color(0xFF2D5040)
+// ── Mode toggle tabs ─────────────────────────────────────────────
+val TabSelected   = Color(0xFF2D453D)
+val TabUnselected = Color(0xFF2A7A60)
 
-// Divider
-val DividerColor = Color(0xFF2D5040)
+// ── Divider ──────────────────────────────────────────────────────
+val DividerColor = Color(0xFF3A5449)
 
 val categoryColors = listOf(
-    CategoryBlue,
-    CategoryRed,
-    CategoryOrange,
-    CategoryPurple,
-    CategoryYellow,
-    CategoryTeal,
-    CategoryPink,
-    CategoryIndigo
+    CategoryBlue, CategoryRed, CategoryOrange, CategoryPurple,
+    CategoryYellow, CategoryTeal, CategoryPink, CategoryIndigo,
+    CategoryLime, CategoryAmber
 )

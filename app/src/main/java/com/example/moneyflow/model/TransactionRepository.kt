@@ -5,95 +5,91 @@ import java.util.Calendar
 
 class TransactionRepository(context: Context) {
 
-    private val db = DatabaseHelper(context)
+    val db = MoneyFlowDatabaseHelper(context)
 
     // ── Period helpers ────────────────────────────────────────────
 
     fun getPeriodRange(filter: PeriodFilter): Pair<Long, Long> {
         val cal = Calendar.getInstance()
-        // End = end of today
-        cal.set(Calendar.HOUR_OF_DAY, 23)
-        cal.set(Calendar.MINUTE, 59)
-        cal.set(Calendar.SECOND, 59)
-        cal.set(Calendar.MILLISECOND, 999)
+        cal.set(Calendar.HOUR_OF_DAY, 23); cal.set(Calendar.MINUTE, 59)
+        cal.set(Calendar.SECOND, 59); cal.set(Calendar.MILLISECOND, 999)
         val end = cal.timeInMillis
 
-        // Start depends on filter
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
+        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
         when (filter) {
-            PeriodFilter.WEEK -> {
-                cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
-            }
-            PeriodFilter.MONTH -> {
-                cal.set(Calendar.DAY_OF_MONTH, 1)
-            }
-            PeriodFilter.YEAR -> {
-                cal.set(Calendar.DAY_OF_YEAR, 1)
-            }
+            PeriodFilter.WEEK  -> cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+            PeriodFilter.MONTH -> cal.set(Calendar.DAY_OF_MONTH, 1)
+            PeriodFilter.YEAR  -> cal.set(Calendar.DAY_OF_YEAR, 1)
         }
         return cal.timeInMillis to end
     }
 
     fun getPeriodLabel(filter: PeriodFilter): String {
         val (start, end) = getPeriodRange(filter)
-        val calStart = Calendar.getInstance().also { it.timeInMillis = start }
-        val calEnd = Calendar.getInstance().also { it.timeInMillis = end }
-        val months = listOf("янв", "фев", "мар", "апр", "май", "июн",
-            "июл", "авг", "сен", "окт", "ноя", "дек")
+        val calS = Calendar.getInstance().also { it.timeInMillis = start }
+        val calE = Calendar.getInstance().also { it.timeInMillis = end }
+        val months = listOf("янв","фев","мар","апр","май","июн",
+            "июл","авг","сен","окт","ноя","дек")
         return when (filter) {
             PeriodFilter.WEEK -> {
-                val s = "${calStart.get(Calendar.DAY_OF_MONTH)} ${months[calStart.get(Calendar.MONTH)]}"
-                val e = "${calEnd.get(Calendar.DAY_OF_MONTH)} ${months[calEnd.get(Calendar.MONTH)]}"
+                val s = "${calS.get(Calendar.DAY_OF_MONTH)} ${months[calS.get(Calendar.MONTH)]}"
+                val e = "${calE.get(Calendar.DAY_OF_MONTH)} ${months[calE.get(Calendar.MONTH)]}"
                 "$s - $e"
             }
-            PeriodFilter.MONTH -> {
-                months[calStart.get(Calendar.MONTH)].replaceFirstChar { it.uppercase() } +
-                        " ${calStart.get(Calendar.YEAR)}"
-            }
-            PeriodFilter.YEAR -> calStart.get(Calendar.YEAR).toString()
+            PeriodFilter.MONTH ->
+                months[calS.get(Calendar.MONTH)].replaceFirstChar { it.uppercase() } +
+                        " ${calS.get(Calendar.YEAR)}"
+            PeriodFilter.YEAR  -> calS.get(Calendar.YEAR).toString()
         }
     }
 
-    // ── Public API ────────────────────────────────────────────────
+    // ── Summary ───────────────────────────────────────────────────
 
-    fun getPeriodSummary(filter: PeriodFilter, mode: TransactionType): PeriodSummary {
+    fun getPeriodSummary(userId: Long, filter: PeriodFilter, mode: TransactionType): PeriodSummary {
         val (start, end) = getPeriodRange(filter)
-        val totalExpenses = db.getTotalByPeriod(TransactionType.EXPENSE, start, end)
-        val totalIncome = db.getTotalByPeriod(TransactionType.INCOME, start, end)
-        val categorySummaries = db.getCategorySummaries(mode, start, end)
+        val transactions = db.getTransactionsByPeriod(userId, mode, start, end)
+        val totalAmount  = transactions.sumOf { it.amount }
+        val grandTotal   = totalAmount.takeIf { it > 0 } ?: 1.0
 
-        // Budget calculations: sum of category budget limits for the period type
-        val categories = db.getCategories(mode)
-        val plannedTotal = categories.sumOf { it.budgetLimit }
-        val actual = if (mode == TransactionType.EXPENSE) totalExpenses else totalIncome
-        val remaining = (plannedTotal - actual).coerceAtLeast(0.0)
+        val summaries = transactions.map { tx ->
+            TransactionSummary(
+                transaction = tx,
+                percentage  = (tx.amount / grandTotal * 100).toFloat()
+            )
+        }
+
+        val planned   = db.getPlannedBudget(userId)
+        // Для расходов: остаток = план - фактические расходы (может быть отрицательным)
+        // Для доходов:  остаток = план - фактические доходы
+        val remainder = planned - totalAmount
 
         return PeriodSummary(
-            totalExpenses = totalExpenses,
-            totalIncome = totalIncome,
-            plannedExpenses = plannedTotal,
-            remainingExpenses = if (mode == TransactionType.EXPENSE) remaining else 0.0,
-            plannedIncome = plannedTotal,
-            remainingIncome = if (mode == TransactionType.INCOME) remaining else 0.0,
-            categorySummaries = categorySummaries,
-            periodLabel = getPeriodLabel(filter)
+            totalAmount          = totalAmount,
+            plannedBudget        = planned,
+            remainder            = remainder,
+            transactionSummaries = summaries,
+            periodLabel          = getPeriodLabel(filter)
         )
     }
 
-    fun getTransactions(type: TransactionType, filter: PeriodFilter): List<Transaction> {
-        val (start, end) = getPeriodRange(filter)
-        return db.getTransactionsByPeriod(type, start, end)
-    }
+    // ── Transactions ──────────────────────────────────────────────
 
-    fun addTransaction(tx: Transaction): Long = db.insertTransaction(tx)
-    fun updateTransaction(tx: Transaction) = db.updateTransaction(tx)
-    fun deleteTransaction(id: Long) = db.deleteTransaction(id)
+    fun addTransaction(tx: Transaction): Long    = db.insertTransaction(tx)
+    fun updateTransaction(tx: Transaction)       = db.updateTransaction(tx)
+    fun deleteTransaction(id: Long, userId: Long) = db.deleteTransaction(id, userId)
 
-    fun getCategories(type: TransactionType): List<Category> = db.getCategories(type)
-    fun addCategory(category: Category): Long = db.insertCategory(category)
-    fun updateCategory(category: Category) = db.updateCategory(category)
-    fun deleteCategory(id: Long) = db.deleteCategory(id)
+    // ── Categories ────────────────────────────────────────────────
+
+    fun getCategories(type: TransactionType, userId: Long): List<Category> =
+        db.getCategories(type, userId)
+
+    // ── Planned budget ────────────────────────────────────────────
+
+    fun getPlannedBudget(userId: Long): Double    = db.getPlannedBudget(userId)
+    fun setPlannedBudget(userId: Long, amount: Double) = db.setPlannedBudget(userId, amount)
+
+    // ── User ──────────────────────────────────────────────────────
+
+    fun getUserById(userId: Long): User? = db.getUserById(userId)
 }

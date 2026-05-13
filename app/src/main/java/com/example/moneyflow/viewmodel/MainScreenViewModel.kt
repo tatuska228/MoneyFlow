@@ -9,6 +9,7 @@ import com.example.moneyflow.model.PeriodSummary
 import com.example.moneyflow.model.Transaction
 import com.example.moneyflow.model.TransactionRepository
 import com.example.moneyflow.model.TransactionType
+import com.example.moneyflow.model.User
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,15 +19,23 @@ import kotlinx.coroutines.withContext
 
 data class MainUiState(
     val isLoading: Boolean = true,
+    val userId: Long = -1L,
+    val userLogin: String = "",
     val selectedMode: TransactionType = TransactionType.EXPENSE,
     val selectedPeriod: PeriodFilter = PeriodFilter.WEEK,
     val summary: PeriodSummary? = null,
     val categories: List<Category> = emptyList(),
-    val selectedTransaction: Transaction? = null,
+    // Edit/Add dialog
     val showEditDialog: Boolean = false,
-    val editDialogCategoryId: Long = -1L,
-    val editDialogDate: Long = System.currentTimeMillis(),
-    val editDialogAmount: String = "",
+    val isEditing: Boolean = false,
+    val editTx: Transaction? = null,
+    val editCategoryId: Long = -1L,
+    val editDateMs: Long = System.currentTimeMillis(),
+    val editAmount: String = "",
+    val editNote: String = "",
+    // Planned budget dialog
+    val showBudgetDialog: Boolean = false,
+    val editPlannedBudget: String = "",
     val error: String? = null
 )
 
@@ -37,22 +46,32 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
-    init {
-        loadData()
+    // ── Init with userId ─────────────────────────────────────────
+
+    fun init(userId: Long) {
+        if (_uiState.value.userId == userId) return
+        _uiState.value = _uiState.value.copy(userId = userId)
+        viewModelScope.launch {
+            val user = withContext(Dispatchers.IO) { repository.getUserById(userId) }
+            _uiState.value = _uiState.value.copy(userLogin = user?.login ?: "")
+            loadData()
+        }
     }
 
-    // ── Data loading ──────────────────────────────────────────────
+    // ── Data loading ─────────────────────────────────────────────
 
     fun loadData() {
+        val userId = _uiState.value.userId
+        if (userId == -1L) return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
                 val state = _uiState.value
                 val summary = withContext(Dispatchers.IO) {
-                    repository.getPeriodSummary(state.selectedPeriod, state.selectedMode)
+                    repository.getPeriodSummary(userId, state.selectedPeriod, state.selectedMode)
                 }
                 val categories = withContext(Dispatchers.IO) {
-                    repository.getCategories(state.selectedMode)
+                    repository.getCategories(state.selectedMode, userId)
                 }
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -61,15 +80,12 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                     error = null
                 )
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message
-                )
+                _uiState.value = _uiState.value.copy(isLoading = false, error = e.message)
             }
         }
     }
 
-    // ── Mode / period selection ───────────────────────────────────
+    // ── Mode / period ────────────────────────────────────────────
 
     fun selectMode(mode: TransactionType) {
         _uiState.value = _uiState.value.copy(selectedMode = mode)
@@ -81,26 +97,60 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         loadData()
     }
 
-    // ── Edit dialog ───────────────────────────────────────────────
+    // ── Planned budget dialog ────────────────────────────────────
 
-    fun openEditDialog(transaction: Transaction) {
+    fun openBudgetDialog() {
+        val current = _uiState.value.summary?.plannedBudget ?: 0.0
         _uiState.value = _uiState.value.copy(
-            selectedTransaction = transaction,
-            showEditDialog = true,
-            editDialogCategoryId = transaction.categoryId,
-            editDialogDate = transaction.date,
-            editDialogAmount = transaction.amount.toInt().toString()
+            showBudgetDialog = true,
+            editPlannedBudget = if (current > 0) current.toInt().toString() else ""
         )
     }
 
+    fun onBudgetAmountChange(v: String) {
+        _uiState.value = _uiState.value.copy(editPlannedBudget = v)
+    }
+
+    fun savePlannedBudget() {
+        val amount = _uiState.value.editPlannedBudget.toDoubleOrNull() ?: return
+        val userId = _uiState.value.userId
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { repository.setPlannedBudget(userId, amount) }
+            _uiState.value = _uiState.value.copy(showBudgetDialog = false)
+            loadData()
+        }
+    }
+
+    fun dismissBudgetDialog() {
+        _uiState.value = _uiState.value.copy(showBudgetDialog = false)
+    }
+
+    // ── Transaction add dialog ───────────────────────────────────
+
     fun openAddDialog() {
-        val categories = _uiState.value.categories
+        val cats = _uiState.value.categories
         _uiState.value = _uiState.value.copy(
-            selectedTransaction = null,
             showEditDialog = true,
-            editDialogCategoryId = categories.firstOrNull()?.id ?: -1L,
-            editDialogDate = System.currentTimeMillis(),
-            editDialogAmount = ""
+            isEditing = false,
+            editTx = null,
+            editCategoryId = cats.firstOrNull()?.id ?: -1L,
+            editDateMs = System.currentTimeMillis(),
+            editAmount = "",
+            editNote = ""
+        )
+    }
+
+    // ── Transaction edit dialog ──────────────────────────────────
+
+    fun openEditDialog(tx: Transaction) {
+        _uiState.value = _uiState.value.copy(
+            showEditDialog = true,
+            isEditing = true,
+            editTx = tx,
+            editCategoryId = tx.categoryId,
+            editDateMs = tx.date,
+            editAmount = tx.amount.toInt().toString(),
+            editNote = tx.note
         )
     }
 
@@ -108,50 +158,60 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         _uiState.value = _uiState.value.copy(showEditDialog = false)
     }
 
-    fun onDialogCategoryChange(categoryId: Long) {
-        _uiState.value = _uiState.value.copy(editDialogCategoryId = categoryId)
+    fun onDialogCategoryChange(id: Long) {
+        _uiState.value = _uiState.value.copy(editCategoryId = id)
     }
 
-    fun onDialogDateChange(dateMs: Long) {
-        _uiState.value = _uiState.value.copy(editDialogDate = dateMs)
+    fun onDialogDateChange(ms: Long) {
+        _uiState.value = _uiState.value.copy(editDateMs = ms)
     }
 
-    fun onDialogAmountChange(amount: String) {
-        _uiState.value = _uiState.value.copy(editDialogAmount = amount)
+    fun onDialogAmountChange(v: String) {
+        _uiState.value = _uiState.value.copy(editAmount = v)
     }
+
+    fun onDialogNoteChange(v: String) {
+        _uiState.value = _uiState.value.copy(editNote = v)
+    }
+
+    // ── Save transaction ─────────────────────────────────────────
 
     fun saveTransaction() {
         viewModelScope.launch {
             val state = _uiState.value
-            val amount = state.editDialogAmount.toDoubleOrNull() ?: return@launch
-            val category = state.categories.find { it.id == state.editDialogCategoryId }
-                ?: return@launch
+            val amount = state.editAmount.toDoubleOrNull() ?: return@launch
+            val category = state.categories.find { it.id == state.editCategoryId } ?: return@launch
+            val userId = state.userId
 
             withContext(Dispatchers.IO) {
                 val tx = Transaction(
-                    id = state.selectedTransaction?.id ?: 0,
+                    id = state.editTx?.id ?: 0L,
+                    userId = userId,
                     amount = amount,
                     type = state.selectedMode,
                     categoryId = category.id,
                     categoryName = category.name,
                     categoryColor = category.colorArgb,
-                    date = state.editDialogDate
+                    date = state.editDateMs,
+                    note = state.editNote
                 )
-                if (state.selectedTransaction == null) {
-                    repository.addTransaction(tx)
-                } else {
-                    repository.updateTransaction(tx)
-                }
+                if (state.isEditing) repository.updateTransaction(tx)
+                else repository.addTransaction(tx)
             }
             dismissDialog()
             loadData()
         }
     }
 
+    // ── Delete transaction ───────────────────────────────────────
+
     fun deleteTransaction() {
         viewModelScope.launch {
-            val txId = _uiState.value.selectedTransaction?.id ?: return@launch
-            withContext(Dispatchers.IO) { repository.deleteTransaction(txId) }
+            val state = _uiState.value
+            val txId = state.editTx?.id ?: return@launch
+            withContext(Dispatchers.IO) {
+                repository.deleteTransaction(txId, state.userId)
+            }
             dismissDialog()
             loadData()
         }
