@@ -168,7 +168,7 @@ fun PlannedBudgetDialog(
         },
         confirmButton = {
             TextButton(onClick = onSave) {
-                Text("Сохранить", color = PrimaryGreen, fontWeight = FontWeight.SemiBold)
+                Text("Сохранить", color = Color.Green, fontWeight = FontWeight.SemiBold)
             }
         },
         dismissButton = {
@@ -212,9 +212,9 @@ private fun DialogDropdownBox(text: String, onClick: () -> Unit) {
 private fun dialogTextFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedContainerColor   = BackgroundField,
     unfocusedContainerColor = BackgroundField,
-    focusedBorderColor      = PrimaryGreen,
+    focusedBorderColor      = Color.Green,
     unfocusedBorderColor    = DividerColor,
     focusedTextColor        = TextPrimary,
     unfocusedTextColor      = TextPrimary,
-    cursorColor             = PrimaryGreen
+    cursorColor             = Color.Green
 )

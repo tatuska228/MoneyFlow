@@ -1,7 +1,6 @@
 package com.example.moneyflow.view
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -13,8 +12,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,9 +25,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.moneyflow.model.PeriodFilter
-import com.example.moneyflow.model.TransactionSummary
 import com.example.moneyflow.model.TransactionType
 import com.example.moneyflow.ui.theme.*
+import com.example.moneyflow.view.elements.*
 import com.example.moneyflow.viewmodel.MainScreenViewModel
 
 @Composable
@@ -36,32 +37,27 @@ fun MainScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Box(modifier = Modifier.fillMaxSize().background(BackgroundMain)) {
+    Box(modifier = Modifier.fillMaxSize().background(Background)) {
 
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
         ) {
 
-            // ── Top bar: login + profile icon ───────────────────
+            // ── Top bar ────────────────────────────────────────────
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
+                modifier = Modifier.fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text       = uiState.userLogin.ifEmpty { "Логин" },
-                    color      = TextPrimary,
+                    text       = uiState.userLogin.ifEmpty { "MoneyFlow" },
+                    color      = OnPrimary,
                     fontSize   = 18.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
+                    modifier = Modifier.size(38.dp).clip(CircleShape)
                         .background(BackgroundDialog)
                         .clickable { onProfileClick() },
                     contentAlignment = Alignment.Center
@@ -69,17 +65,15 @@ fun MainScreen(
                     Icon(
                         imageVector        = Icons.Default.Person,
                         contentDescription = "Профиль",
-                        tint               = TextPrimary,
+                        tint               = OnPrimary,
                         modifier           = Modifier.size(22.dp)
                     )
                 }
             }
 
-            // ── Mode toggle ─────────────────────────────────────
+            // ── Mode toggle ────────────────────────────────────────
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 ModeToggleButton(
@@ -98,35 +92,28 @@ fun MainScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            // ── Budget summary row ──────────────────────────────
+            // ── Budget summary ─────────────────────────────────────
             val summary = uiState.summary
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
+                verticalAlignment     = Alignment.Bottom
             ) {
-                // «по плану» — кликабельно для изменения суммы
-                Column(
-                    modifier = Modifier.clickable { viewModel.openBudgetDialog() }
-                ) {
+                Column(modifier = Modifier.clickable { viewModel.openBudgetDialog() }) {
                     Text("по плану", color = TextSecondary, fontSize = 12.sp)
                     Text(
                         text       = "${(summary?.plannedBudget ?: 0.0).toInt()} ₽",
-                        color      = TextPrimary,
+                        color      = OnPrimary,
                         fontSize   = 26.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
-
-                // остаток (может быть отрицательным)
                 Column(horizontalAlignment = Alignment.End) {
                     Text("остаток", color = TextSecondary, fontSize = 12.sp)
-                    val remainder = summary?.remainder ?: 0.0
+                    val rem = summary?.remainder ?: 0.0
                     Text(
-                        text       = "${remainder.toInt()} ₽",
-                        color      = if (remainder < 0) Color(0xFFFF6B6B) else TextPrimary,
+                        text       = "${rem.toInt()} ₽",
+                        color      = if (rem < 0) Color(0xFFFF6B6B) else OnPrimary,
                         fontSize   = 26.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -135,20 +122,17 @@ fun MainScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            // ── Chart card ──────────────────────────────────────
+            // ── Chart card ─────────────────────────────────────────
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                shape  = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = BackgroundCard),
+                modifier  = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                shape     = RoundedCornerShape(20.dp),
+                colors    = CardDefaults.cardColors(containerColor = BackgroundDialog),
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier            = Modifier.padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-
                     // Period tabs
                     PeriodTabsRow(
                         selectedPeriod   = uiState.selectedPeriod,
@@ -157,7 +141,6 @@ fun MainScreen(
 
                     Spacer(Modifier.height(6.dp))
 
-                    // Period date label
                     Text(
                         text      = summary?.periodLabel ?: "",
                         color     = TextSecondary,
@@ -167,22 +150,15 @@ fun MainScreen(
 
                     Spacer(Modifier.height(16.dp))
 
-                    // Donut chart
                     val slices     = transactionSlices(summary?.transactionSummaries ?: emptyList())
                     val totalLabel = "${(summary?.totalAmount ?: 0.0).toInt()} ₽"
 
-                    DonutChart(
-                        slices      = slices,
-                        centerLabel = totalLabel,
-                        size        = 180.dp,
-                        strokeWidth = 38.dp
-                    )
+                    DonutChart(slices = slices, centerLabel = totalLabel, size = 180.dp, strokeWidth = 38.dp)
 
                     Spacer(Modifier.height(16.dp))
 
-                    // Transaction list under chart
-                    val txSummaries = summary?.transactionSummaries ?: emptyList()
-                    if (txSummaries.isEmpty()) {
+                    val txList = summary?.transactionSummaries ?: emptyList()
+                    if (txList.isEmpty()) {
                         Text(
                             text     = "Нет операций за период",
                             color    = TextHint,
@@ -190,7 +166,7 @@ fun MainScreen(
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
                     } else {
-                        txSummaries.forEach { txSummary ->
+                        txList.forEach { txSummary ->
                             TransactionRow(
                                 txSummary = txSummary,
                                 onClick   = { viewModel.openEditDialog(txSummary.transaction) }
@@ -201,55 +177,59 @@ fun MainScreen(
                 }
             }
 
-            // Bottom padding for FAB
             Spacer(Modifier.height(88.dp))
         }
 
-        // ── FAB ─────────────────────────────────────────────────
+        // ── FAB ────────────────────────────────────────────────────
         FloatingActionButton(
-            onClick          = { viewModel.openAddDialog() },
-            containerColor   = BackgroundDialog,
-            contentColor     = TextPrimary,
-            shape            = CircleShape,
-            modifier         = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(24.dp)
-                .size(56.dp)
+            onClick        = { viewModel.openAddDialog() },
+            containerColor = BackgroundDialog,
+            contentColor   = OnPrimary,
+            shape          = CircleShape,
+            modifier       = Modifier.align(Alignment.BottomEnd).padding(24.dp).size(56.dp)
         ) {
-            Icon(
-                imageVector        = Icons.Default.Add,
-                contentDescription = "Добавить операцию",
-                modifier           = Modifier.size(28.dp)
-            )
+            Icon(Icons.Default.Add, contentDescription = "Добавить операцию", modifier = Modifier.size(28.dp))
         }
     }
 
-    // ── Loading overlay ──────────────────────────────────────────
+    // ── Loading ────────────────────────────────────────────────────
     if (uiState.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = TextPrimary)
+            CircularProgressIndicator(color = OnPrimary)
         }
     }
 
-    // ── Transaction add / edit dialog ────────────────────────────
+    // ── Error snackbar ─────────────────────────────────────────────
+    uiState.error?.let { errorMsg ->
+        val snackState = remember { SnackbarHostState() }
+        LaunchedEffect(errorMsg) {
+            snackState.showSnackbar(errorMsg)
+            viewModel.loadData() // clear error by reloading
+        }
+        Box(Modifier.fillMaxSize()) {
+            SnackbarHost(snackState, modifier = Modifier.align(Alignment.BottomCenter))
+        }
+    }
+
+    // ── Transaction dialog ─────────────────────────────────────────
     TransactionDialog(
-        isVisible         = uiState.showEditDialog,
-        isEditing         = uiState.isEditing,
-        categories        = uiState.categories,
+        isVisible          = uiState.showEditDialog,
+        isEditing          = uiState.isEditing,
+        categories         = uiState.categories,
         selectedCategoryId = uiState.editCategoryId,
-        selectedDateMs    = uiState.editDateMs,
-        amount            = uiState.editAmount,
-        note              = uiState.editNote,
-        onCategoryChange  = viewModel::onDialogCategoryChange,
-        onDateChange      = viewModel::onDialogDateChange,
-        onAmountChange    = viewModel::onDialogAmountChange,
-        onNoteChange      = viewModel::onDialogNoteChange,
-        onSave            = viewModel::saveTransaction,
-        onDelete          = viewModel::deleteTransaction,
-        onDismiss         = viewModel::dismissDialog
+        selectedDateMs     = uiState.editDateMs,
+        amount             = uiState.editAmount,
+        note               = uiState.editNote,
+        onCategoryChange   = viewModel::onDialogCategoryChange,
+        onDateChange       = viewModel::onDialogDateChange,
+        onAmountChange     = viewModel::onDialogAmountChange,
+        onNoteChange       = viewModel::onDialogNoteChange,
+        onSave             = viewModel::saveTransaction,
+        onDelete           = viewModel::deleteTransaction,
+        onDismiss          = viewModel::dismissDialog
     )
 
-    // ── Planned budget dialog ────────────────────────────────────
+    // ── Budget dialog ──────────────────────────────────────────────
     PlannedBudgetDialog(
         isVisible    = uiState.showBudgetDialog,
         currentValue = uiState.editPlannedBudget,
@@ -259,81 +239,25 @@ fun MainScreen(
     )
 }
 
-// ── Period tabs ───────────────────────────────────────────────────
+// ── Period tabs ────────────────────────────────────────────────────
 
 @Composable
-private fun PeriodTabsRow(
-    selectedPeriod: PeriodFilter,
-    onPeriodSelected: (PeriodFilter) -> Unit
-) {
+private fun PeriodTabsRow(selectedPeriod: PeriodFilter, onPeriodSelected: (PeriodFilter) -> Unit) {
     val tabs = listOf("НЕД" to PeriodFilter.WEEK, "МЕСЯЦ" to PeriodFilter.MONTH, "ГОД" to PeriodFilter.YEAR)
     Row(modifier = Modifier.fillMaxWidth()) {
         tabs.forEach { (label, filter) ->
             val isSelected = selectedPeriod == filter
             Text(
                 text       = label,
-                color      = if (isSelected) TextPrimary else TextSecondary,
+                color      = if (isSelected) OnPrimary else TextSecondary,
                 fontSize   = 13.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                 textAlign  = TextAlign.Center,
-                modifier   = Modifier
-                    .weight(1f)
+                modifier   = Modifier.weight(1f)
                     .clip(RoundedCornerShape(6.dp))
                     .clickable { onPeriodSelected(filter) }
                     .padding(vertical = 6.dp)
             )
         }
-    }
-}
-
-// ── Transaction row ───────────────────────────────────────────────
-
-@Composable
-fun TransactionRow(
-    txSummary: TransactionSummary,
-    onClick: () -> Unit
-) {
-    val tx = txSummary.transaction
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, DividerColor, RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Category colour dot
-        Box(
-            modifier = Modifier
-                .size(14.dp)
-                .clip(CircleShape)
-                .background(Color(tx.categoryColor))
-        )
-        Spacer(Modifier.width(10.dp))
-
-        // Category name
-        Text(
-            text     = tx.categoryName,
-            color    = TextPrimary,
-            fontSize = 14.sp,
-            modifier = Modifier.weight(1f)
-        )
-
-        // Percentage
-        Text(
-            text     = "${txSummary.percentage.toInt()}%",
-            color    = TextSecondary,
-            fontSize = 13.sp
-        )
-        Spacer(Modifier.width(12.dp))
-
-        // Amount
-        Text(
-            text       = "${tx.amount.toInt()} ₽",
-            color      = TextPrimary,
-            fontSize   = 14.sp,
-            fontWeight = FontWeight.SemiBold
-        )
     }
 }

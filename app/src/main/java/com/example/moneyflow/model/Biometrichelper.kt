@@ -7,18 +7,11 @@ import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 
-sealed class BiometricResult {
-    object Success   : BiometricResult()
-    object Cancelled : BiometricResult()
-    data class Error(val message: String) : BiometricResult()
-}
-
 object BiometricHelper {
 
-    fun isAvailable(context: Context): Boolean {
-        val manager = BiometricManager.from(context)
-        return manager.canAuthenticate(BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
-    }
+    fun isAvailable(context: Context): Boolean =
+        BiometricManager.from(context).canAuthenticate(BIOMETRIC_STRONG) ==
+                BiometricManager.BIOMETRIC_SUCCESS
 
     fun authenticate(
         activity: FragmentActivity,
@@ -34,20 +27,21 @@ object BiometricHelper {
             }
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                 if (errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON ||
-                    errorCode == BiometricPrompt.ERROR_USER_CANCELED
-                ) onResult(BiometricResult.Cancelled)
-                else onResult(BiometricResult.Error(errString.toString()))
+                    errorCode == BiometricPrompt.ERROR_USER_CANCELED)
+                    onResult(BiometricResult.Cancelled)
+                else
+                    onResult(BiometricResult.Error(errString.toString()))
             }
-            override fun onAuthenticationFailed() { /* BiometricPrompt shows error itself */ }
+            override fun onAuthenticationFailed() { /* shown by system */ }
         }
 
-        val prompt = BiometricPrompt(activity, executor, callback)
-        val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle(title)
-            .setSubtitle(subtitle)
-            .setNegativeButtonText(negativeButtonText)
-            .setAllowedAuthenticators(BIOMETRIC_STRONG)
-            .build()
-        prompt.authenticate(promptInfo)
+        BiometricPrompt(activity, executor, callback).authenticate(
+            BiometricPrompt.PromptInfo.Builder()
+                .setTitle(title)
+                .setSubtitle(subtitle)
+                .setNegativeButtonText(negativeButtonText)
+                .setAllowedAuthenticators(BIOMETRIC_STRONG)
+                .build()
+        )
     }
 }
