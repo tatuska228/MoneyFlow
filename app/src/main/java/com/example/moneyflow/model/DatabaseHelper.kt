@@ -314,4 +314,54 @@ class MoneyFlowDatabaseHelper(context: Context) :
             SQLiteDatabase.CONFLICT_REPLACE
         )
     }
+
+    // ── Profile update ────────────────────────────────────────────
+
+    /** Returns true if login was successfully updated (false = login already taken) */
+    fun updateUserLogin(userId: Long, newLogin: String): Boolean {
+        val taken = readableDatabase.query(
+            TABLE_USERS, arrayOf(COL_USER_ID),
+            "$COL_USER_LOGIN = ? AND $COL_USER_ID != ?",
+            arrayOf(newLogin, userId.toString()), null, null, null
+        ).use { it.moveToFirst() }
+        if (taken) return false
+        writableDatabase.update(
+            TABLE_USERS,
+            ContentValues().apply { put(COL_USER_LOGIN, newLogin) },
+            "$COL_USER_ID = ?", arrayOf(userId.toString())
+        )
+        return true
+    }
+
+    fun updateUserPassword(userId: Long, newPasswordHash: String) {
+        writableDatabase.update(
+            TABLE_USERS,
+            ContentValues().apply { put(COL_USER_PASSWORD_HASH, newPasswordHash) },
+            "$COL_USER_ID = ?", arrayOf(userId.toString())
+        )
+    }
+
+    /** Get all transactions for a user (for PDF export) */
+    fun getAllTransactions(userId: Long): List<Transaction> {
+        val list = mutableListOf<Transaction>()
+        readableDatabase.rawQuery(
+            "SELECT $COL_TX_ID, $COL_TX_USER_ID, $COL_TX_AMOUNT, $COL_TX_TYPE, " +
+                    "$COL_TX_CATEGORY_ID, $COL_TX_CATEGORY_NAME, $COL_TX_CATEGORY_COLOR, $COL_TX_DATE, $COL_TX_NOTE " +
+                    "FROM $TABLE_TRANSACTIONS WHERE $COL_TX_USER_ID = ? ORDER BY $COL_TX_DATE DESC",
+            arrayOf(userId.toString())
+        ).use { c ->
+            while (c.moveToNext()) list += Transaction(
+                id            = c.getLong(0),
+                userId        = c.getLong(1),
+                amount        = c.getDouble(2),
+                type          = TransactionType.fromDb(c.getString(3)),
+                categoryId    = c.getLong(4),
+                categoryName  = c.getString(5),
+                categoryColor = c.getLong(6),
+                date          = c.getLong(7),
+                note          = c.getString(8)
+            )
+        }
+        return list
+    }
 }

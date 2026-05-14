@@ -37,8 +37,11 @@ fun RegisterScreen(
         uiState.errorMessage?.let { snackbarHostState.showSnackbar(it); viewModel.clearError() }
     }
 
-    LaunchedEffect(uiState.loggedInUserId) {
-        uiState.loggedInUserId?.let { onRegisterSuccess(it) }
+    val loggedInUserId = uiState.loggedInUserId
+    LaunchedEffect(loggedInUserId) {
+        if (loggedInUserId != null) {
+            onRegisterSuccess(loggedInUserId)
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {

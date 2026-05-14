@@ -47,8 +47,13 @@ fun LoginScreen(
         uiState.errorMessage?.let { snackbarHostState.showSnackbar(it); viewModel.clearError() }
     }
 
-    LaunchedEffect(uiState.loggedInUserId) {
-        uiState.loggedInUserId?.let { onLoginSuccess(it) }
+    // Only react when loggedInUserId is freshly set (non-null) after the user actually logs in.
+    // Using the value as key ensures we don't re-trigger on recomposition.
+    val loggedInUserId = uiState.loggedInUserId
+    LaunchedEffect(loggedInUserId) {
+        if (loggedInUserId != null) {
+            onLoginSuccess(loggedInUserId)
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {

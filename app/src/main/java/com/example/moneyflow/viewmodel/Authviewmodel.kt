@@ -74,6 +74,12 @@ class AuthViewModel(
     fun clearError() =
         _uiState.update { it.copy(errorMessage = null) }
 
+    /** Call on logout — resets the entire auth state so LoginScreen starts fresh */
+    fun logout(activity: FragmentActivity) {
+        _uiState.value = AuthUiState()   // full reset
+        init(activity)                   // reload users list and biometric availability
+    }
+
     // ── Login ─────────────────────────────────────────────────────
 
     fun login() {

@@ -171,8 +171,7 @@ class MainScreenViewModel(private val repository: TransactionRepository) : ViewM
     fun onDialogNoteChange(v: String) =
         _uiState.value.let { _uiState.value = it.copy(editNote = v) }
 
-    // ── Save transaction ──────────────────────────────────────────
-
+    // Сохранение операции
     fun saveTransaction() {
         viewModelScope.launch {
             val state    = _uiState.value
@@ -193,7 +192,6 @@ class MainScreenViewModel(private val repository: TransactionRepository) : ViewM
                 _uiState.value = state.copy(error = "Пользователь не определён")
                 return@launch
             }
-
             withContext(Dispatchers.IO) {
                 val tx = Transaction(
                     id            = state.editTx?.id ?: 0L,
@@ -214,7 +212,7 @@ class MainScreenViewModel(private val repository: TransactionRepository) : ViewM
         }
     }
 
-    // ── Delete transaction ────────────────────────────────────────
+    // Удаление операции
 
     fun deleteTransaction() {
         viewModelScope.launch {
