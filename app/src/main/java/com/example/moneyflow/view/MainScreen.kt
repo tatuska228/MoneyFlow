@@ -37,7 +37,9 @@ fun MainScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Box(modifier = Modifier.fillMaxSize().background(Background)) {
+    Box(modifier = Modifier.fillMaxSize()
+        .background(Background)
+        .padding(top = 20.dp, bottom = 20.dp)) {
 
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())

@@ -95,7 +95,7 @@ fun TransactionDialog(
                 ) {
                     categories.forEach { cat ->
                         DropdownMenuItem(
-                            text    = { Text(cat.name, color = TextPrimary, fontSize = 14.sp) },
+                            text    = { Text(cat.name, color = OnPrimary, fontSize = 14.sp) },
                             onClick = { onCategoryChange(cat.id); showCategoryDropdown = false }
                         )
                     }
@@ -198,7 +198,7 @@ private fun DialogDropdownBox(text: String, onClick: () -> Unit) {
             .padding(horizontal = 16.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = text, color = TextPrimary, fontSize = 15.sp)
+        Text(text = text, color = OnPrimary, fontSize = 15.sp)
         Icon(
             imageVector = Icons.Default.ArrowDropDown,
             contentDescription = null,
@@ -210,7 +210,7 @@ private fun DialogDropdownBox(text: String, onClick: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun dialogTextFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedContainerColor   = BackgroundField,
+    focusedContainerColor   = OnPrimary,
     unfocusedContainerColor = BackgroundField,
     focusedBorderColor      = Color.Green,
     unfocusedBorderColor    = DividerColor,

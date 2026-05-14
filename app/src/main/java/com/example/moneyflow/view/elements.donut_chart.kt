@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.moneyflow.model.TransactionSummary
 import com.example.moneyflow.ui.theme.BackgroundDialog
+import com.example.moneyflow.ui.theme.OnPrimary
 import com.example.moneyflow.ui.theme.TextPrimary
 
 data class DonutSlice(val color: Color, val percentage: Float)
@@ -65,7 +66,7 @@ fun DonutChart(
 
         Text(
             text       = centerLabel,
-            color      = TextPrimary,
+            color      = OnPrimary,
             fontSize   = 18.sp,
             fontWeight = FontWeight.Bold
         )
